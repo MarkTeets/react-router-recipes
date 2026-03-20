@@ -1,14 +1,30 @@
 import {
   isRouteErrorResponse,
+  NavLink,
   Links,
   Meta,
   Outlet,
   Scripts,
   ScrollRestoration,
+  useNavigation,
+  useResolvedPath,
 } from "react-router";
 
 import type { Route } from "./+types/root";
 import "./app.css";
+import {
+  DiscoverIcon,
+  HomeIcon,
+  RecipeBookIcon,
+  SettingsIcon,
+} from "./components/icons";
+
+export function meta({}: Route.MetaArgs) {
+  return [
+    { title: "React Router Recipes" },
+    { name: "description", content: "Welcome to the React Router Recipes App" },
+  ];
+}
 
 export const links: Route.LinksFunction = () => [
   { rel: "preconnect", href: "https://fonts.googleapis.com" },
@@ -32,7 +48,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <Meta />
         <Links />
       </head>
-      <body>
+      <body className="md:flex md:h-screen">
         {children}
         <ScrollRestoration />
         <Scripts />
@@ -42,7 +58,29 @@ export function Layout({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
-  return <Outlet />;
+  return (
+    <>
+      <nav className="bg-primary text-white">
+        <ul className="flex md:flex-col">
+          <AppNavLink to="/">
+            <HomeIcon />
+          </AppNavLink>
+          <AppNavLink to="/discover">
+            <DiscoverIcon />
+          </AppNavLink>
+          <AppNavLink to="/app">
+            <RecipeBookIcon />
+          </AppNavLink>
+          <AppNavLink to="/settings">
+            <SettingsIcon />
+          </AppNavLink>
+        </ul>
+      </nav>
+      <div className="p-4">
+        <Outlet />
+      </div>
+    </>
+  );
 }
 
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
@@ -73,3 +111,30 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
     </main>
   );
 }
+
+type AppNavLinkProps = {
+  children: React.ReactNode;
+  to: string;
+};
+
+function AppNavLink({ children, to }: AppNavLinkProps) {
+  const path = useResolvedPath(to);
+  const navigation = useNavigation();
+  const isLoading =
+    navigation.state === "loading" &&
+    navigation.location.pathname === path.pathname;
+
+  return (
+    <li className="w-16">
+      <NavLink
+        to={to}
+        className={({ isActive }) =>
+          `py-4 flex justify-center hover:bg-primary-light ${isActive || isLoading ? "bg-primary-light" : ""} ${isLoading ? "animate-pulse" : ""}`
+        }
+      >
+        <div className="flex justify-center">{children}</div>
+      </NavLink>
+    </li>
+  );
+}
+ 
