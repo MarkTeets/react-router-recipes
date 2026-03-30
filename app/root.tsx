@@ -18,6 +18,7 @@ import {
   RecipeBookIcon,
   SettingsIcon,
 } from "./components/icons";
+import classNames from "classnames";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -117,6 +118,37 @@ type AppNavLinkProps = {
   to: string;
 };
 
+// With classnames package
+function AppNavLink({ children, to }: AppNavLinkProps) {
+  const path = useResolvedPath(to);
+  const navigation = useNavigation();
+  const isLoading =
+    navigation.state === "loading" &&
+    navigation.location.pathname === path.pathname;
+
+  return (
+    <li className="w-16">
+      <NavLink to={to}>
+        {({ isActive }) => (
+          <div
+            className={classNames(
+              "py-4 flex justify-center hover:bg-primary-light",
+              {
+                "bg-primary-light": isActive || isLoading,
+                "animate-pulse": isLoading,
+              },
+            )}
+          >
+            {children}
+          </div>
+        )}
+      </NavLink>
+    </li>
+  );
+}
+// */
+// Without classnames package
+/*
 function AppNavLink({ children, to }: AppNavLinkProps) {
   const path = useResolvedPath(to);
   const navigation = useNavigation();
@@ -137,4 +169,4 @@ function AppNavLink({ children, to }: AppNavLinkProps) {
     </li>
   );
 }
- 
+ // */
