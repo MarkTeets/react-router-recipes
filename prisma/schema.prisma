@@ -1,0 +1,33 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model PantryShelf {
+  id String @id @default(cuid())
+  name String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  items PantryItem[]
+}
+
+model PantryItem {
+  id String @id @default(cuid())
+  name String
+  shelfId String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  shelf PantryShelf @relation(fields: [shelfId], references:[id], onDelete: Cascade)
+}
+
