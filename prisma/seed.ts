@@ -1,7 +1,7 @@
 // import { PrismaClient } from "@prisma/client/extension";
 // const db = new PrismaClient();
 
-import { prisma as db } from "./prisma"
+import { db } from "~/db.server";
 
 function getShelves() {
   return [

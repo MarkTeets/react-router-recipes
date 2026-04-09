@@ -8,6 +8,8 @@ import {
   ScrollRestoration,
   useNavigation,
   useResolvedPath,
+  useRouteError,
+  Link,
 } from "react-router";
 
 import type { Route } from "./+types/root";
@@ -49,7 +51,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <Meta />
         <Links />
       </head>
-      <body className="md:flex md:h-screen">
+      <body className="md:flex md:h-screen bg-background">
         {children}
         <ScrollRestoration />
         <Scripts />
@@ -77,13 +79,42 @@ export default function App() {
           </AppNavLink>
         </ul>
       </nav>
-      <div className="p-4 w-full">
+      <div className="p-4 w-full md:w-[calc(100%-4rem)]">
         <Outlet />
       </div>
     </>
   );
 }
 
+export function ErrorBoundary() {
+  const error = useRouteError();
+
+  return (
+    <html>
+      <head>
+        <title>Whoops!</title>
+        <meta charSet="utf-8" />
+        <meta name="viewport" content="width=device-width,initial-scale-1" />
+        <Meta />
+        <Links />
+      </head>
+      <body>
+        <div className="p-4">
+          <h1 className="text-2xl pb-3">Whoops!</h1>
+          <p>You're seeing this page because an unexpected error occurred.</p>
+          {error instanceof Error ? (
+            <p className="my-4 font-bold">{error.message}</p>
+          ) : null}
+          <Link to="/" className="text-primary">
+            Take me home
+          </Link>
+        </div>
+      </body>
+    </html>
+  );
+}
+
+/* Error boundary from youtube course video
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
   let message = "Oops!";
   let details = "An unexpected error occurred.";
@@ -112,6 +143,7 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
     </main>
   );
 }
+*/
 
 type AppNavLinkProps = {
   children: React.ReactNode;

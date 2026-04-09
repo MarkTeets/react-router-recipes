@@ -1,5 +1,3 @@
-// Adapted and moved code to app/db.server.ts to be in line with course
-/*
 import "dotenv/config";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../generated/prisma/client";
@@ -12,18 +10,17 @@ const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
 };
 
-const prisma =
+const db =
   globalForPrisma.prisma ??
   new PrismaClient({
     adapter,
-    log: ["query", "info", "warn", "error"],
   });
-
+  //log: ["query", "info", "warn", "error"],
+  
 if (process.env.NODE_ENV !== "production") {
-  globalForPrisma.prisma = prisma;
+  globalForPrisma.prisma = db;
 }
 
 console.log("process.env.NODE_ENV: ", process.env.NODE_ENV);
 
-export { prisma };
-*/
+export { db };
