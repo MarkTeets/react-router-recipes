@@ -17,6 +17,7 @@ import "./app.css";
 import {
   DiscoverIcon,
   HomeIcon,
+  LoginIcon,
   RecipeBookIcon,
   SettingsIcon,
 } from "./components/icons";
@@ -63,7 +64,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
 export default function App() {
   return (
     <>
-      <nav className="bg-primary text-white">
+      <nav className="bg-primary text-white md:w-16 flex md:flex-col justify-between">
         <ul className="flex md:flex-col">
           <AppNavLink to="/">
             <HomeIcon />
@@ -78,6 +79,11 @@ export default function App() {
             <SettingsIcon />
           </AppNavLink>
         </ul>
+        <ul>
+          <AppNavLink to="/login">
+            <LoginIcon/>
+          </AppNavLink>
+        </ul>
       </nav>
       <div className="p-4 w-full md:w-[calc(100%-4rem)]">
         <Outlet />
@@ -86,6 +92,7 @@ export default function App() {
   );
 }
 
+/* From ZTM course, caused an error of placing html element within body
 export function ErrorBoundary() {
   const error = useRouteError();
 
@@ -113,8 +120,9 @@ export function ErrorBoundary() {
     </html>
   );
 }
+*/
 
-/* Error boundary from youtube course video
+/* Error boundary from youtube course video */
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
   let message = "Oops!";
   let details = "An unexpected error occurred.";
@@ -143,7 +151,7 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
     </main>
   );
 }
-*/
+//*/
 
 type AppNavLinkProps = {
   children: React.ReactNode;
