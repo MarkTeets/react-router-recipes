@@ -1,6 +1,6 @@
-//import { Prisma } from "@prisma/client/extension";
-import { Prisma } from "generated/prisma/client";
+//import { Prisma } from "generated/prisma/client";
 import { db } from "~/db.server";
+import { handleDelete } from "./utils";
 
 export function getAllShelves(query: string | null) {
   return db.pantryShelf.findMany({
@@ -23,30 +23,23 @@ export function getAllShelves(query: string | null) {
   });
 }
 
-export function createShelf() {
+export function createShelf(userId: string) {
   return db.pantryShelf.create({
     data: {
       name: "New Shelf",
+      userId,
     },
   });
 }
 
-export async function deleteShelf(shelfId: string) {
-  try {
-    const deleted = await db.pantryShelf.delete({
+export function deleteShelf(id: string) {
+  return handleDelete(() =>
+    db.pantryShelf.delete({
       where: {
-        id: shelfId,
+        id,
       },
-    });
-    return deleted;
-  } catch (error) {
-    if (error instanceof Prisma.PrismaClientKnownRequestError) {
-      if (error.code === "P2025") {
-        return error.message;
-      }
-    }
-    throw error;
-  }
+    }),
+  );
 }
 
 export function saveShelfName(shelfId: string, shelfName: string) {
