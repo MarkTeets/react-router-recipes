@@ -1,5 +1,8 @@
 import classNames from "classnames";
 import { NavLink, Outlet } from "react-router";
+import { requireLoggedInUserMiddleware } from "~/middleware/auth";
+
+export const middleware = [requireLoggedInUserMiddleware];
 
 export default function App() {
   return (

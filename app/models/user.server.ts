@@ -1,7 +1,7 @@
 import { db } from "~/db.server";
 
-export  function getUser(email: string) {
-  return db.user.findUnique({where: {email}})
+export function getUser(email: string) {
+  return db.user.findUnique({ where: { email } });
 }
 
 export function createUser(email: string, firstName: string, lastName: string) {
@@ -9,7 +9,11 @@ export function createUser(email: string, firstName: string, lastName: string) {
     data: {
       email,
       firstName,
-      lastName
-    }
-  })
-};
+      lastName,
+    },
+  });
+}
+
+export function getUserById(id: string) {
+  return db.user.findUnique({ where: { id } });
+}

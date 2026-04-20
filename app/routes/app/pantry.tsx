@@ -2,9 +2,12 @@ import React from "react";
 import {
   data,
   Form,
+  isRouteErrorResponse,
+  redirect,
   useFetcher,
   useLoaderData,
   useNavigation,
+  useRouteError,
   useSearchParams,
   type ActionFunction,
   type LoaderFunctionArgs,
@@ -15,18 +18,31 @@ import {
   createShelf,
   deleteShelf,
   getAllShelves,
+  getShelf,
   saveShelfName,
 } from "~/models/pantry-shelf.server";
 import classNames from "classnames";
 import z from "zod";
 import { validateForm } from "~/utils/validation";
-import { createShelfItem, deleteShelfItem } from "~/models/pantry-item.server";
+import {
+  createShelfItem,
+  deleteShelfItem,
+  getShelfItem,
+} from "~/models/pantry-item.server";
 import { useIsHydrated } from "~/utils/misc";
+import { userContext } from "~/middleware/auth";
 
-export async function loader({ request }: LoaderFunctionArgs) {
+export async function loader({ request, context }: LoaderFunctionArgs) {
+  const user = context.get(userContext);
+  if (user === null) {
+    console.log(
+      "Middleware auth not functioning, redirected from pantry loader to /login",
+    );
+    throw redirect("/login");
+  }
   const url = new URL(request.url);
   const q = url.searchParams.get("q");
-  const shelves = await getAllShelves(q);
+  const shelves = await getAllShelves(user.id, q);
   //console.log(shelves);
   return { shelves };
 }
@@ -49,17 +65,33 @@ const deleteShelfItemSchema = z.object({
   itemId: z.string(),
 });
 
-export const action: ActionFunction = async ({ request }) => {
+export const action: ActionFunction = async ({ request, context }) => {
+  const user = context.get(userContext);
+  if (user === null) {
+    console.log(
+      "Middleware auth not functioning, redirected from pantry action to /login",
+    );
+    throw redirect("/login");
+  }
   const formData = await request.formData();
   switch (formData.get("_action")) {
     case "createShelf": {
-      return createShelf("me");
+      return createShelf(user.id);
     }
     case "deleteShelf": {
       return validateForm(
         formData,
         deleteShelfSchema,
-        (data) => deleteShelf(data.shelfId),
+        async (parsedData) => {
+          const shelf = await getShelf(parsedData.shelfId);
+          if (shelf?.userId !== user.id) {
+            throw data(
+              { message: "This shelf is not yours so you cannot delete it" },
+              { status: 401 },
+            );
+          }
+          deleteShelf(parsedData.shelfId);
+        },
         (errors) => data({ errors }, { status: 400 }),
       );
     }
@@ -67,7 +99,16 @@ export const action: ActionFunction = async ({ request }) => {
       return validateForm(
         formData,
         saveShelfNameSchema,
-        (data) => saveShelfName(data.shelfId, data.shelfName),
+        async (parsedData) => {
+          const shelf = await getShelf(parsedData.shelfId);
+          if (shelf?.userId !== user.id) {
+            throw data(
+              { message: "This shelf is not yours so you cannot rename it" },
+              { status: 401 },
+            );
+          }
+          saveShelfName(parsedData.shelfId, parsedData.shelfName);
+        },
         (errors) => data({ errors }, { status: 400 }),
       );
 
@@ -101,7 +142,7 @@ export const action: ActionFunction = async ({ request }) => {
       return validateForm(
         formData,
         createShelfItemSchema,
-        (data) => createShelfItem(data.shelfId, data.itemName, "me"),
+        (data) => createShelfItem(user.id, data.shelfId, data.itemName),
         (errors) => data({ errors }, { status: 400 }),
       );
     }
@@ -109,7 +150,16 @@ export const action: ActionFunction = async ({ request }) => {
       return validateForm(
         formData,
         deleteShelfItemSchema,
-        (data) => deleteShelfItem(data.itemId),
+        async (parsedData) => {
+          const item = await getShelfItem(parsedData.itemId);
+          if (item !== null && item.userId !== user.id) {
+            throw data(
+              { message: "This item is not yours, so you cannot delete it" },
+              { status: 401 },
+            );
+          }
+          deleteShelfItem(parsedData.itemId);
+        },
         (errors) => data({ errors }, { status: 400 }),
       );
     }
@@ -335,11 +385,15 @@ function Shelf({ shelf }: ShelfProps) {
           <ShelfItem key={item.id} shelfItem={item} />
         ))}
       </ul>
-      <deleteShelfFetcher.Form method="POST" className="pt-8" onSubmit={(event) => {
-        if (!confirm("Are you sure you want to delete this shelf?")) {
-          event.preventDefault();
-        }
-      }}>
+      <deleteShelfFetcher.Form
+        method="POST"
+        className="pt-8"
+        onSubmit={(event) => {
+          if (!confirm("Are you sure you want to delete this shelf?")) {
+            event.preventDefault();
+          }
+        }}
+      >
         <input type="hidden" name="shelfId" value={shelf.id} />
         <ErrorMessage className="pb-2">
           {deleteShelfFetcher.data?.errors.shelfId}
@@ -416,4 +470,25 @@ function useOptimisticItems(
 
 function createItemId() {
   return `${Math.round(Math.random() * 1_000_000)}`;
+}
+
+export function ErrorBoundary() {
+  const error = useRouteError();
+
+  if (isRouteErrorResponse(error)) {
+    return (
+      <div className="bg-red-600 text-white rounded-md p-4">
+        <h1 className="mb-2">
+          {error.status} - {error.statusText}
+        </h1>
+        <p>{error.data.message}</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-red-600 text-white rounded-md p-4">
+      <h1 className="mb-2">An unexpected error occurred</h1>
+    </div>
+  );
 }

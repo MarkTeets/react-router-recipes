@@ -1,5 +1,7 @@
 import Cryptr from "cryptr";
 import { data } from "react-router";
+import { renderToStaticMarkup } from "react-dom/server";
+import { sendEmail } from "./utils/emails.server";
 
 if (typeof process.env.MAGIC_LINK_SECRET !== "string") {
   throw new Error("Missing env: MAGIC_LINK_SECRET");
@@ -41,7 +43,7 @@ function isMagicLinkPayload(value: any): value is MagicLinkPayload {
 }
 
 export function invalidMagicLink(message: string) {
-  return data({message}, {status:400})
+  return data({ message }, { status: 400 });
 }
 
 export function getMagicLinkPayload(request: Request) {
@@ -49,7 +51,7 @@ export function getMagicLinkPayload(request: Request) {
   const magic = url.searchParams.get("magic");
 
   if (typeof magic !== "string") {
-    throw invalidMagicLink("'magic' search parameter does not exist")
+    throw invalidMagicLink("'magic' search parameter does not exist");
   }
 
   const magicLinkPayload = JSON.parse(cryptr.decrypt(magic));
@@ -59,4 +61,29 @@ export function getMagicLinkPayload(request: Request) {
   }
 
   return magicLinkPayload;
+}
+
+export function sendMagicLinkEmail(link: string, email: string) {
+  if (process.env.NODE_ENV !== "production") {
+    console.log('process.env.NODE_ENV:', process.env.NODE_ENV);
+    console.log(link);
+    return;
+  }
+
+  const html = renderToStaticMarkup(
+    <div>
+      <h1>Log in to React Router Recipes</h1>
+      <p>
+        Hey there! Click the link below to finish logging in to the React Router
+        Recipes app.
+      </p>
+      <a href={link}>Log In</a>
+    </div>,
+  );
+  return sendEmail({
+    from: "React Router Recipes <markteets@gmail.com>",
+    to: email,
+    subject: "Log in to React Router Recipes",
+    html,
+  });
 }

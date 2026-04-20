@@ -10,6 +10,9 @@ import {
   useResolvedPath,
   useRouteError,
   Link,
+  type LoaderFunction,
+  data,
+  useLoaderData,
 } from "react-router";
 
 import type { Route } from "./+types/root";
@@ -18,10 +21,12 @@ import {
   DiscoverIcon,
   HomeIcon,
   LoginIcon,
+  LogoutIcon,
   RecipeBookIcon,
   SettingsIcon,
 } from "./components/icons";
 import classNames from "classnames";
+import { getCurrentUser } from "./utils/auth.server";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -43,6 +48,11 @@ export const links: Route.LinksFunction = () => [
   },
 ];
 
+export const loader: LoaderFunction = async ({ request }) => {
+  const user = await getCurrentUser(request);
+  return data({ isLoggedIn: user !== null });
+};
+
 export function Layout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
@@ -62,6 +72,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
+  const data = useLoaderData();
   return (
     <>
       <nav className="bg-primary text-white md:w-16 flex md:flex-col justify-between">
@@ -72,17 +83,25 @@ export default function App() {
           <AppNavLink to="/discover">
             <DiscoverIcon />
           </AppNavLink>
-          <AppNavLink to="/app">
-            <RecipeBookIcon />
-          </AppNavLink>
+          {data.isLoggedIn ? (
+            <AppNavLink to="/app">
+              <RecipeBookIcon />
+            </AppNavLink>
+          ) : null}
           <AppNavLink to="/settings">
             <SettingsIcon />
           </AppNavLink>
         </ul>
         <ul>
-          <AppNavLink to="/login">
-            <LoginIcon/>
-          </AppNavLink>
+          {data.isLoggedIn ? (
+            <AppNavLink to="/logout">
+              <LogoutIcon />
+            </AppNavLink>
+          ) : (
+            <AppNavLink to="/login">
+              <LoginIcon />
+            </AppNavLink>
+          )}
         </ul>
       </nav>
       <div className="p-4 w-full md:w-[calc(100%-4rem)]">
@@ -122,7 +141,7 @@ export function ErrorBoundary() {
 }
 */
 
-/* Error boundary from youtube course video */
+/* Error boundary from youtube course video 
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
   let message = "Oops!";
   let details = "An unexpected error occurred.";
@@ -152,6 +171,42 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
   );
 }
 //*/
+
+// Updated code from course: https://github.com/zachdtaylor/remix-recipes-course/blob/main/app/root.tsx
+export function ErrorBoundary() {
+  const error = useRouteError();
+
+  if (isRouteErrorResponse(error)) {
+    return (
+      <div className="p-4">
+        <h1 className="text-2xl pb-3">
+          {error.status} - {error.statusText}
+        </h1>
+        <p>You're seeing this page because an error occurred.</p>
+        <p className="my-4 font-bold">{error.data.message}</p>
+        <Link to="/" className="text-primary">
+          Take me home
+        </Link>
+      </div>
+    );
+  }
+
+  let errorMessage = "Unknown error";
+  if (error instanceof Error) {
+    errorMessage = error.message;
+  }
+
+  return (
+    <div className="p-4">
+      <h1 className="text-2xl pb-3">Whoops!</h1>
+      <p>You're seeing this page because an unexpected error occurred.</p>
+      <p className="my-4 font-bold">{errorMessage}</p>
+      <Link to="/" className="text-primary">
+        Take me home
+      </Link>
+    </div>
+  );
+}
 
 type AppNavLinkProps = {
   children: React.ReactNode;
