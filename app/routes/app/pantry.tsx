@@ -1,19 +1,22 @@
 import React from "react";
 import {
   data,
-  Form,
   isRouteErrorResponse,
   redirect,
   useFetcher,
   useLoaderData,
-  useNavigation,
   useRouteError,
-  useSearchParams,
   type ActionFunction,
   type LoaderFunctionArgs,
 } from "react-router";
-import { DeleteButton, ErrorMessage, PrimaryButton } from "~/components/form";
-import { PlusIcon, SaveIcon, SearchIcon, TrashIcon } from "~/components/icons";
+import {
+  DeleteButton,
+  ErrorMessage,
+  Input,
+  PrimaryButton,
+  SearchBar,
+} from "~/components/form";
+import { PlusIcon, SaveIcon, TrashIcon } from "~/components/icons";
 import {
   createShelf,
   deleteShelf,
@@ -171,12 +174,9 @@ export const action: ActionFunction = async ({ request, context }) => {
 
 export default function Pantry() {
   const data = useLoaderData<typeof loader>();
-  const [searchParams] = useSearchParams();
   const createShelfFetcher = useFetcher();
-  const navigation = useNavigation();
   const containerRef = React.useRef<HTMLUListElement>(null);
 
-  const isSearching = navigation.formData?.has("q");
   const isCreatingShelf =
     createShelfFetcher.formData?.get("_action") === "createShelf";
 
@@ -191,25 +191,7 @@ export default function Pantry() {
       {/* <h1>Welcome to the pantry :</h1> */}
 
       {/* Search filter for shelf name form */}
-      <Form
-        className={classNames(
-          "flex border-2 border-gray-300 rounded-md",
-          "focus-within:border-primary md:w-80",
-          { "animate-pulse": isSearching },
-        )}
-      >
-        <button className="px-2 mr-1 hover:bg-amber-200">
-          <SearchIcon />
-        </button>
-        <input
-          defaultValue={searchParams.get("q") ?? ""}
-          type="text"
-          name="q"
-          autoComplete="off"
-          placeholder="Search Shelves"
-          className="w-full py-3 px-2 outline-none"
-        />
-      </Form>
+      <SearchBar placeholder="Search Shelves..." className="md:w-80" />
 
       {/* Create new shelf form */}
       <createShelfFetcher.Form method="POST">
@@ -277,20 +259,15 @@ function Shelf({ shelf }: ShelfProps) {
     >
       <saveShelfNameFetcher.Form method="POST" className="flex">
         <div className="w-full mb-2 peer">
-          <input
+          <Input
             type="text"
             required
             defaultValue={shelf.name}
             name="shelfName"
             placeholder="Shelf Name"
             autoComplete="off"
-            className={classNames(
-              "text-2xl font-extrabold w-full outline-none",
-              "border-b-2 border-b-background focus:border-b-primary",
-              saveShelfNameFetcher.data?.errors?.shelfName
-                ? "border-b-red-600"
-                : "",
-            )}
+            className={"text-2xl font-extrabold"}
+            error={!!saveShelfNameFetcher.data?.errors?.shelfName}
             onChange={(event) => {
               if (event.target.value === "") return;
               saveShelfNameFetcher.submit(

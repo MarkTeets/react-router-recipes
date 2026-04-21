@@ -10,5 +10,5 @@ export function loader() {
   //   },
   // });
 
-  return redirect("/app/pantry");
+  return redirect("/app/recipes");
 }
