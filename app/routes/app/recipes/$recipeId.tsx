@@ -3,8 +3,11 @@ import type { Route } from "./+types/$recipeId";
 import {
   data,
   Form,
+  isRouteErrorResponse,
+  redirect,
   useActionData,
   useLoaderData,
+  useRouteError,
   type ActionFunctionArgs,
 } from "react-router";
 import {
@@ -18,15 +21,20 @@ import React from "react";
 import classNames from "classnames";
 import z from "zod";
 import { validateForm } from "~/utils/validation";
+import { handleDelete } from "~/models/utils";
+import { userContext } from "~/middleware/auth";
 
 export function headers({ loaderHeaders }: Route.HeadersArgs) {
   return loaderHeaders;
 }
 
-export async function loader({ params }: Route.LoaderArgs) {
+export async function loader({ context, params }: Route.LoaderArgs) {
+  const user = context.get(userContext);
+  if (user === null) throw redirect("/login");
   const recipe = await db.recipe.findUnique({
     where: {
       id: params.recipeId,
+      userId: user.id,
     },
     include: {
       ingredients: {
@@ -41,6 +49,13 @@ export async function loader({ params }: Route.LoaderArgs) {
       },
     },
   });
+
+  if (recipe === null) {
+    throw data(
+      { message: "A recipe with that id does not exist" },
+      { status: 404 },
+    );
+  }
   return data(
     { recipe },
     {
@@ -76,9 +91,32 @@ const createIngredientSchema = z.object({
   newIngredientName: z.string().min(1, "Name cannot be blank"),
 });
 
-export async function action({ request, params }: ActionFunctionArgs) {
-  const formData = await request.formData();
+export async function action({ request, params, context }: ActionFunctionArgs) {
+  const user = context.get(userContext);
+  if (user === null) throw redirect("/login");
+
   const recipeId = String(params.recipeId);
+  // For auth, we'll make sure the recipe is owned by the user
+  const recipe = await db.recipe.findUnique({
+    where: { id: recipeId, userId: user.id },
+  });
+
+  if (recipe === null) {
+    throw data(
+      { message: "A recipe with that id does not exist" },
+      { status: 404 },
+    );
+  }
+
+  const formData = await request.formData();
+  const _action = formData.get("_action");
+
+  if (typeof _action === "string" && _action.includes("deleteIngredient")) {
+    const ingredientId = _action.split(".")[1];
+    return handleDelete(() =>
+      db.ingredient.delete({ where: { id: ingredientId } }),
+    );
+  }
 
   switch (formData.get("_action")) {
     case "saveRecipe": {
@@ -127,6 +165,10 @@ export async function action({ request, params }: ActionFunctionArgs) {
         },
         (errors) => data({ errors }, { status: 400 }),
       );
+    }
+    case "deleteRecipe": {
+      await handleDelete(() => db.recipe.delete({ where: { id: recipeId } }));
+      return redirect("/app/recipes");
     }
     default: {
       return null;
@@ -198,7 +240,7 @@ export default function RecipeDetail() {
                 {actionData?.errors?.[`ingredientNames.${idx}`]}
               </ErrorMessage>
             </div>
-            <button>
+            <button name="_action" value={`deleteIngredient.${ingredient.id}`}>
               <TrashIcon />
             </button>
           </React.Fragment>
@@ -250,11 +292,34 @@ export default function RecipeDetail() {
       <ErrorMessage>{actionData?.errors?.instructions}</ErrorMessage>
       <hr className="my-4" />
       <div className="flex justify-between">
-        <DeleteButton>Delete this Recipe</DeleteButton>
+        <DeleteButton name="_action" value="deleteRecipe">
+          Delete this Recipe
+        </DeleteButton>
         <PrimaryButton name="_action" value="saveRecipe">
           <div className="flex flex-col justify-center h-full">Save</div>
         </PrimaryButton>
       </div>
     </Form>
+  );
+}
+
+export function ErrorBoundary() {
+  const error = useRouteError();
+
+  if (isRouteErrorResponse(error)) {
+    return (
+      <div className="bg-red-600 text-white rounded-md p-4">
+        <h1 className="mb-2">
+          {error.status} - {error.statusText}
+        </h1>
+        <p>{error.data.message}</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-red-600 text-white rounded-md p-4">
+      <h1 className="mb-2">An unexpected error occurred</h1>
+    </div>
   );
 }
