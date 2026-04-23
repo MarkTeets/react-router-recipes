@@ -28,16 +28,20 @@ export function validateForm<T, S, E>(
 ) {
   const fields = objectify(formData);
   const result = zodSchema.safeParse(fields);
-
+  // console.log('formData:');
+  // console.log(formData);
   if (!result.success) {
     const errors: FieldErrors = {};
     result.error.issues.forEach((issue) => {
       const path = issue.path.join(".");
       errors[path] = issue.message;
     });
+    // console.log('failed; errors:');
+    // console.log(errors);
     return errorFn(errors);
   }
-
+  // console.log('success; result:')
+  // console.log(result)
   return successFn(result.data);
 }
 
