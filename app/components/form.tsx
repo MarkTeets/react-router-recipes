@@ -1,4 +1,4 @@
-import {
+import React, {
   type ButtonHTMLAttributes,
   type HTMLAttributes,
   type InputHTMLAttributes,
@@ -109,20 +109,23 @@ export function SearchBar({ placeholder, className }: SearchBarProps) {
   );
 }
 
-interface InputProps extends InputHTMLAttributes<HTMLInputElement>{
+interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   error?: boolean;
 }
 
-export function Input({error, className, ...props}: InputProps) {
-  return (
-    <input
-      className={classNames(
-        "w-full outline-none",
-        "border-b-2 border-b-background focus:border-b-primary",
-        error ? "border-b-red-600" : "",
-        className
-      )}
-      {...props}
-    />
-  );
-}
+export const Input = React.forwardRef<HTMLInputElement, InputProps>(
+  ({ error, className, ...props }, ref) => {
+    return (
+      <input
+        ref={ref}
+        className={classNames(
+          "w-full outline-none",
+          "border-b-2 border-b-background focus:border-b-primary",
+          error ? "border-b-red-600" : "",
+          className,
+        )}
+        {...props}
+      />
+    );
+  },
+);

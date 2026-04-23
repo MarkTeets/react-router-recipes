@@ -25,6 +25,10 @@ import { validateForm } from "~/utils/validation";
 import { handleDelete } from "~/models/utils";
 import { userContext } from "~/middleware/auth";
 import { useDebouncedFunction } from "~/utils/misc";
+import {
+  useSaveRecipeNameFetcher,
+  useSaveRecipeTotalTimeFetcher,
+} from "~/utils/hooks";
 
 export function headers({ loaderHeaders }: Route.HeadersArgs) {
   return loaderHeaders;
@@ -260,12 +264,25 @@ export async function action({ request, params, context }: ActionFunctionArgs) {
   }
 }
 
-export default function RecipeDetail() {
+export default function RecipeDetail({ params }: Route.ComponentProps) {
   const data = useLoaderData<typeof loader>();
-  const actionData = useActionData();
-  const saveNameFetcher = useFetcher();
-  const saveTotalTimeFetcher = useFetcher();
+  const actionData = useActionData<typeof action>();
+  const saveNameFetcher = useSaveRecipeNameFetcher(params.recipeId);
+  const saveTotalTimeFetcher = useSaveRecipeTotalTimeFetcher(params.recipeId);
   const saveInstructionsFetcher = useFetcher();
+  const createIngredientFetcher = useFetcher();
+  const newIngredientAmountRef = React.useRef<HTMLInputElement>(null);
+
+  const { renderedIngredients, addIngredient } = useOptimisticIngredients(
+    data.recipe.ingredients,
+    createIngredientFetcher.state,
+  );
+
+  // Using this state to tie save ingredient button to inputs
+  const [createIngredientForm, setCreateIngredientForm] = React.useState({
+    amount: "",
+    name: "",
+  });
 
   // Created for imperative saving of recipe name as user types (onChange)
   const saveName = useDebouncedFunction((name: string) => {
@@ -291,8 +308,25 @@ export default function RecipeDetail() {
     );
   }, 1000);
 
+  const createIngredient = () => {
+    addIngredient(createIngredientForm.amount, createIngredientForm.name);
+    createIngredientFetcher.submit(
+      {
+        _action: "createIngredient",
+        newIngredientAmount: createIngredientForm.amount,
+        newIngredientName: createIngredientForm.name,
+      },
+      { method: "POST", action: `/app/recipes/${data.recipe.id}` },
+    );
+    setCreateIngredientForm({ amount: "", name: "" });
+    newIngredientAmountRef.current?.focus();
+  };
+
   return (
     <Form method="POST" reloadDocument>
+      {/* hidden button allows Enter key to save recipe from within form, 
+      overwritten with onKeyDown for ingredients, see below */}
+      <button name="_action" value="saveRecipe" className="hidden" />
       <div className="mb-2">
         <Input
           key={data.recipe?.id}
@@ -339,7 +373,7 @@ export default function RecipeDetail() {
         <h2 className="font-bold text-sm pb-1">Amount</h2>
         <h2 className="font-bold text-sm pb-1">Name</h2>
         <div></div>
-        {data.recipe?.ingredients.map((ingredient, idx) => (
+        {renderedIngredients.map((ingredient, idx) => (
           <IngredientRow
             key={ingredient.id}
             id={ingredient.id}
@@ -348,17 +382,40 @@ export default function RecipeDetail() {
             name={ingredient.name}
             amountError={actionData?.errors?.[`ingredientAmounts.${idx}`]}
             nameError={actionData?.errors?.[`ingredientNames.${idx}`]}
+            isOptimistic={ingredient.isOptimistic}
           />
         ))}
         <div>
           <Input
+            ref={newIngredientAmountRef}
             type="text"
             autoComplete="off"
             name="newIngredientAmount"
             className="border-b-gray-200"
-            error={!!actionData?.errors?.newIngredientAmount}
+            value={createIngredientForm.amount}
+            onChange={(e) =>
+              setCreateIngredientForm((values) => ({
+                ...values,
+                amount: e.target.value,
+              }))
+            }
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                createIngredient();
+              }
+            }}
+            error={
+              !!(
+                createIngredientFetcher.data?.errors?.newIngredientAmount ||
+                actionData?.errors?.newIngredientAmount
+              )
+            }
           />
-          <ErrorMessage>{actionData?.errors?.newIngredientAmount}</ErrorMessage>
+          <ErrorMessage>
+            {createIngredientFetcher.data?.errors?.newIngredientAmount ||
+              actionData?.errors?.newIngredientAmount}
+          </ErrorMessage>
         </div>
         <div>
           <Input
@@ -366,11 +423,39 @@ export default function RecipeDetail() {
             autoComplete="off"
             name="newIngredientName"
             className="border-b-gray-200"
-            error={!!actionData?.errors?.newIngredientName}
+            value={createIngredientForm.name}
+            onChange={(e) =>
+              setCreateIngredientForm((values) => ({
+                ...values,
+                name: e.target.value,
+              }))
+            }
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                createIngredient();
+              }
+            }}
+            error={
+              !!(
+                createIngredientFetcher.data?.errors?.newIngredientName ||
+                actionData?.errors?.newIngredientName
+              )
+            }
           />
-          <ErrorMessage>{actionData?.errors?.newIngredientName}</ErrorMessage>
+          <ErrorMessage>
+            {createIngredientFetcher.data?.errors?.newIngredientName ||
+              actionData?.errors?.newIngredientName}
+          </ErrorMessage>
         </div>
-        <button name="_action" value="createIngredient">
+        <button
+          name="_action"
+          value="createIngredient"
+          onClick={(e) => {
+            e.preventDefault();
+            createIngredient();
+          }}
+        >
           <SaveIcon />
         </button>
       </div>
@@ -443,6 +528,7 @@ type IngredientRowProps = {
   amountError?: string;
   name: string;
   nameError?: string;
+  isOptimistic?: boolean;
 };
 
 function IngredientRow({
@@ -452,9 +538,11 @@ function IngredientRow({
   amountError,
   name,
   nameError,
+  isOptimistic,
 }: IngredientRowProps) {
   const saveAmountFetcher = useFetcher();
   const saveNameFetcher = useFetcher();
+  const deleteIngredientFetcher = useFetcher();
 
   // React.useEffect(() => {
   //   console.log("saveNameFetcher state changed:", saveNameFetcher.state);
@@ -483,7 +571,7 @@ function IngredientRow({
     );
   }, 1000);
 
-  return (
+  return deleteIngredientFetcher.state !== "idle" ? null : (
     <React.Fragment>
       <input type="hidden" name="ingredientIds[]" value={id} />
       <div>
@@ -495,6 +583,7 @@ function IngredientRow({
           onChange={(e) => {
             saveAmount(e.target.value);
           }}
+          disabled={isOptimistic}
           error={!!(saveAmountFetcher.data?.errors?.amount || amountError)}
         />
         <ErrorMessage>
@@ -508,19 +597,67 @@ function IngredientRow({
           name="ingredientNames[]"
           defaultValue={name ?? ""}
           onChange={(e) => {
-            console.log("pre save saveNameFetcher");
-            console.log(saveNameFetcher);
+            // console.log("pre save saveNameFetcher");
+            // console.log(saveNameFetcher);
             saveName(e.target.value);
           }}
+          disabled={isOptimistic}
           error={!!(saveNameFetcher.data?.errors?.name || nameError)}
         />
         <ErrorMessage>
           {saveNameFetcher.data?.errors?.name || nameError}
         </ErrorMessage>
       </div>
-      <button name="_action" value={`deleteIngredient.${id}`}>
+      <button
+        name="_action"
+        value={`deleteIngredient.${id}`}
+        onClick={(e) => {
+          e.preventDefault();
+          deleteIngredientFetcher.submit(
+            {
+              _action: `deleteIngredient.${id}`,
+            },
+            { method: "POST", action: `/app/recipes/${recipeId}` },
+          );
+        }}
+      >
         <TrashIcon />
       </button>
     </React.Fragment>
   );
+}
+
+type RenderedIngredient = {
+  id: string;
+  name: string;
+  amount: string | null;
+  isOptimistic?: boolean;
+};
+
+function useOptimisticIngredients(
+  savedIngredients: RenderedIngredient[],
+  createIngredientState: "idle" | "submitting" | "loading",
+) {
+  const [optimisticIngredients, setOptimisticIngredients] = React.useState<
+    RenderedIngredient[]
+  >([]);
+  const renderedIngredients = [...savedIngredients, ...optimisticIngredients];
+
+  React.useLayoutEffect(() => {
+    if (createIngredientState === "idle") {
+      setOptimisticIngredients([]);
+    }
+  }, [savedIngredients]);
+
+  const addIngredient = (amount: string | null, name: string) => {
+    setOptimisticIngredients((ingredients) => [
+      ...ingredients,
+      { id: createIngredientId(), name, amount, isOptimistic: true },
+    ]);
+  };
+  return { renderedIngredients, addIngredient };
+}
+
+function createIngredientId() {
+  return `${Math.round(Math.random() * 1_000_000)}`;
 }
