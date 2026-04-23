@@ -66,7 +66,7 @@ export async function action({ request, context }: Route.ActionArgs) {
       userId: user.id,
       name: "New Recipe",
       totalTime: "0 min",
-      imageUrl: "https://via.placeholder.com/150?text=Router+Recipes",
+      imageUrl: "https://placehold.co/150?text=Router+Recipes",
       instructions: "",
     },
   });
