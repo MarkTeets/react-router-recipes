@@ -10,3 +10,5 @@
 
 # Sample code from mailgun
 app/utils/mailgun.ts
+
+recipe-images/

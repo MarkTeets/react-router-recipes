@@ -11,6 +11,7 @@ import {
   useRouteError,
   type ActionFunctionArgs,
 } from "react-router";
+import { FileUpload, parseFormData } from "@mjackson/form-data-parser";
 import {
   DeleteButton,
   ErrorMessage,
@@ -29,6 +30,7 @@ import {
   useSaveRecipeNameFetcher,
   useSaveRecipeTotalTimeFetcher,
 } from "~/utils/hooks";
+import { fileStorage, getStorageKey } from "~/recipe-image-storage.server";
 
 export function headers({ loaderHeaders }: Route.HeadersArgs) {
   return loaderHeaders;
@@ -138,7 +140,23 @@ export async function action({ request, params, context }: ActionFunctionArgs) {
     );
   }
 
-  const formData = await request.formData();
+  const uploadHandler = async (fileUpload: FileUpload) => {
+    // Make sure that fileUpload matches input name
+    if (fileUpload.fieldName === "image") {
+      const key = getStorageKey(recipeId);
+      await fileStorage.set(key, fileUpload);
+      return fileStorage.get(key);
+    }
+  };
+
+  const formData = await parseFormData(request, uploadHandler);
+  const image = formData.get("image");
+  if (image && typeof image !== "string" && image.size !== 0) {
+    await db.recipe.update({
+      where: { id: recipeId },
+      data: {imageUrl: `/recipes/${recipeId}/image`}
+    })
+  }
   const _action = formData.get("_action");
 
   if (typeof _action === "string" && _action.includes("deleteIngredient")) {
@@ -323,7 +341,7 @@ export default function RecipeDetail({ params }: Route.ComponentProps) {
   };
 
   return (
-    <Form method="POST" reloadDocument>
+    <Form method="POST" encType="multipart/form-data" reloadDocument>
       {/* hidden button allows Enter key to save recipe from within form, 
       overwritten with onKeyDown for ingredients, see below */}
       <button name="_action" value="saveRecipe" className="hidden" />
@@ -487,6 +505,18 @@ export default function RecipeDetail({ params }: Route.ComponentProps) {
         {saveInstructionsFetcher?.data?.errors?.instructions ||
           actionData?.errors?.instructions}
       </ErrorMessage>
+      <label
+        htmlFor="image"
+        className="block font-bold text-sm pb-2 w-fit mt-4"
+      >
+        Image
+      </label>
+      <input
+        type="file"
+        name="image"
+        key={`${data.recipe?.id}.image`}
+        id="image"
+      />
       <hr className="my-4" />
       <div className="flex justify-between">
         <DeleteButton name="_action" value="deleteRecipe">
