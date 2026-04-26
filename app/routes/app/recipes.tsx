@@ -1,4 +1,3 @@
-import { userContext } from "~/middleware/auth";
 import type { Route } from "./+types/recipes";
 import {
   data,
@@ -9,6 +8,7 @@ import {
   useLoaderData,
   useLocation,
   useNavigation,
+  type ShouldRevalidateFunctionArgs,
 } from "react-router";
 import { db } from "~/db.server";
 import {
@@ -23,18 +23,20 @@ import {
   useSaveRecipeNameFetcher,
   useSaveRecipeTotalTimeFetcher,
 } from "~/utils/hooks";
+import { mealPlanIsOpeningOrClosing } from "~/utils/revalidation";
+import { getUserFromContext } from "~/utils/getUserFromContext";
 
 // Needed to attach headers from loader to response. Set-Cookie headers are an exception
 export function headers({ loaderHeaders }: Route.HeadersArgs) {
   return loaderHeaders;
 }
 
-export async function loader({ request, context }: Route.LoaderArgs) {
-  const user = context.get(userContext);
-  if (user === null) {
-    throw redirect("/login");
-  }
+export function shouldRevalidate(arg: ShouldRevalidateFunctionArgs) {
+  return !mealPlanIsOpeningOrClosing(arg);
+}
 
+export async function loader({ request, context }: Route.LoaderArgs) {
+  const user = getUserFromContext(context);
   const url = new URL(request.url); // Gives easy access to search params on url
   const q = url.searchParams.get("q");
 
@@ -47,7 +49,13 @@ export async function loader({ request, context }: Route.LoaderArgs) {
         mode: "insensitive",
       },
     },
-    select: { name: true, totalTime: true, imageUrl: true, id: true },
+    select: {
+      name: true,
+      totalTime: true,
+      mealPlanMultiplier: true,
+      imageUrl: true,
+      id: true,
+    },
     orderBy: {
       createdAt: "desc",
     },
@@ -63,8 +71,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 }
 
 export async function action({ request, context }: Route.ActionArgs) {
-  const user = context.get(userContext);
-  if (user === null) throw redirect("/login");
+  const user = getUserFromContext(context);
   const recipe = await db.recipe.create({
     data: {
       userId: user.id,
@@ -113,6 +120,7 @@ type RecipeListItemProps = {
   recipe: {
     id: string;
     name: string;
+    mealPlanMultiplier: number | null;
     totalTime: string;
     imageUrl: string;
   };
@@ -143,6 +151,7 @@ function RecipeListItem({ recipe }: RecipeListItemProps) {
           <RecipeCard
             name={optimisticData.name ?? recipe.name}
             totalTime={optimisticData.totalTime ?? recipe.totalTime}
+            mealPlanMultiplier={recipe.mealPlanMultiplier}
             imageUrl={recipe.imageUrl}
             isActive={isActive}
             isLoading={isLoading}

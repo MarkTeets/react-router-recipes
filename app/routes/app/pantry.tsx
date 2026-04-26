@@ -2,7 +2,6 @@ import React from "react";
 import {
   data,
   isRouteErrorResponse,
-  redirect,
   useFetcher,
   useLoaderData,
   useRouteError,
@@ -33,16 +32,10 @@ import {
   getShelfItem,
 } from "~/models/pantry-item.server";
 import { useIsHydrated } from "~/utils/misc";
-import { userContext } from "~/middleware/auth";
+import { getUserFromContext } from "~/utils/getUserFromContext";
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
-  const user = context.get(userContext);
-  if (user === null) {
-    console.log(
-      "Middleware auth not functioning, redirected from pantry loader to /login",
-    );
-    throw redirect("/login");
-  }
+  const user = getUserFromContext(context);
   const url = new URL(request.url);
   const q = url.searchParams.get("q");
   const shelves = await getAllShelves(user.id, q);
@@ -69,13 +62,7 @@ const deleteShelfItemSchema = z.object({
 });
 
 export const action: ActionFunction = async ({ request, context }) => {
-  const user = context.get(userContext);
-  if (user === null) {
-    console.log(
-      "Middleware auth not functioning, redirected from pantry action to /login",
-    );
-    throw redirect("/login");
-  }
+  const user = getUserFromContext(context);
   const formData = await request.formData();
   switch (formData.get("_action")) {
     case "createShelf": {

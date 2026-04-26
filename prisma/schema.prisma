@@ -55,6 +55,8 @@ model Recipe {
   totalTime String
   imageUrl String
   userId String
+  mealPlanMultiplier Int?
+  
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -65,7 +67,7 @@ model Recipe {
 model Ingredient {
   id String @id @default(cuid())
   name String
-  amount String
+  amount String?
   recipeId String 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

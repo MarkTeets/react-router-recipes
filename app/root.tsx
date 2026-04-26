@@ -13,6 +13,7 @@ import {
   type LoaderFunction,
   data,
   useLoaderData,
+  type ShouldRevalidateFunctionArgs,
 } from "react-router";
 
 import type { Route } from "./+types/root";
@@ -27,6 +28,7 @@ import {
 } from "./components/icons";
 import classNames from "classnames";
 import { getCurrentUser } from "./utils/auth.server";
+import { mealPlanIsOpeningOrClosing } from "./utils/revalidation";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -48,6 +50,10 @@ export const links: Route.LinksFunction = () => [
   },
 ];
 
+export function shouldRevalidate(arg: ShouldRevalidateFunctionArgs) {
+  return !mealPlanIsOpeningOrClosing(arg);
+}
+
 export const loader: LoaderFunction = async ({ request }) => {
   const user = await getCurrentUser(request);
   return data({ isLoggedIn: user !== null });
@@ -62,10 +68,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <Meta />
         <Links />
       </head>
-      <body className="md:flex md:h-screen bg-background">
-        {children}
-        <ScrollRestoration />
-        <Scripts />
+      <body>
+        <div id="root" className="md:flex md:h-screen bg-background">
+          {children}
+          <ScrollRestoration />
+          <Scripts />
+        </div>
       </body>
     </html>
   );
