@@ -1,4 +1,5 @@
 import React from "react";
+import { useLocation } from "react-router";
 
 let hasHydrated = false;
 
@@ -61,3 +62,14 @@ export function useDebouncedFunction<T extends Array<any>>(
   return debouncedFn;
 }
 */
+
+export function useBuildSearchParams() {
+  const location = useLocation();
+
+  return (name: string, value: string) => {
+    const searchParams = new URLSearchParams(location.search);
+    searchParams.set(name, value);
+
+    return `?${searchParams.toString()}`;
+  }
+}
