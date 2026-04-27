@@ -10,3 +10,4 @@ export const sessionCookie = createCookie("remix-recipes__session", {
   secrets:[process.env.AUTH_COOKIE_SECRET]
 });
 
+export const themeCookie = createCookie("remix-recipes__theme");

@@ -38,6 +38,7 @@ export function meta({}: Route.MetaArgs) {
 }
 
 export const links: Route.LinksFunction = () => [
+  { rel: "stylesheet", href: "/theme.css"},
   { rel: "preconnect", href: "https://fonts.googleapis.com" },
   {
     rel: "preconnect",
