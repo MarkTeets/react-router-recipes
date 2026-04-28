@@ -7,3 +7,8 @@
 /build/
 **/postgres-data
 /generated/prisma
+
+# Sample code from mailgun
+app/utils/mailgun.ts
+
+recipe-images/
