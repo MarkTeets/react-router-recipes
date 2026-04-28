@@ -80,7 +80,7 @@ export const action: ActionFunction = async ({ request, context }) => {
               { status: 401 },
             );
           }
-          deleteShelf(parsedData.shelfId);
+          await deleteShelf(parsedData.shelfId);
         },
         (errors) => data({ errors }, { status: 400 }),
       );
@@ -97,7 +97,7 @@ export const action: ActionFunction = async ({ request, context }) => {
               { status: 401 },
             );
           }
-          saveShelfName(parsedData.shelfId, parsedData.shelfName);
+          await saveShelfName(parsedData.shelfId, parsedData.shelfName);
         },
         (errors) => data({ errors }, { status: 400 }),
       );
@@ -148,7 +148,7 @@ export const action: ActionFunction = async ({ request, context }) => {
               { status: 401 },
             );
           }
-          deleteShelfItem(parsedData.itemId);
+          await deleteShelfItem(parsedData.itemId);
         },
         (errors) => data({ errors }, { status: 400 }),
       );
@@ -252,6 +252,7 @@ function Shelf({ shelf }: ShelfProps) {
             defaultValue={shelf.name}
             name="shelfName"
             placeholder="Shelf Name"
+            aria-label="Shelf name"
             autoComplete="off"
             className={"text-2xl font-extrabold"}
             error={!!saveShelfNameFetcher.data?.errors?.shelfName}
@@ -382,7 +383,11 @@ function ShelfItem({ shelfItem }: ShelfItemProps) {
       <deleteShelfItemFetcher.Form method="POST" className="flex">
         <p className="w-full">{shelfItem.name}</p>
         {shelfItem.isOptimistic ? null : (
-          <button name="_action" value="deleteShelfItem">
+          <button
+            name="_action"
+            value="deleteShelfItem"
+            aria-label={`delete ${shelfItem.name}`}
+          >
             <TrashIcon />
           </button>
         )}
