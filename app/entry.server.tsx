@@ -1,6 +1,12 @@
 import { PassThrough } from "node:stream";
 
-import type { AppLoadContext, EntryContext } from "react-router";
+import type {
+  ActionFunctionArgs,
+  AppLoadContext,
+  EntryContext,
+  LoaderFunctionArgs,
+  RouterContextProvider,
+} from "react-router";
 import { createReadableStreamFromReadable } from "@react-router/node";
 import { ServerRouter } from "react-router";
 import { isbot } from "isbot";
@@ -9,15 +15,38 @@ import { renderToPipeableStream } from "react-dom/server";
 
 export const streamTimeout = 5_000;
 
+function matchingEtag(requestHeaders: Headers, responseHeaders: Headers) {
+  const ifNoneMatch = requestHeaders.get("if-none-match");
+  const etag = responseHeaders.get("etag");
+
+  return ifNoneMatch !== null && etag !== null && etag === ifNoneMatch;
+}
+
+
+export function handleDataRequest(
+  response: Response,
+  { request }: LoaderFunctionArgs | ActionFunctionArgs
+) {
+  if (matchingEtag(request.headers, response.headers)) {
+    return new Response(null, { status: 304, headers: response.headers });
+  }
+
+  return response;
+}
+
+
 export default function handleRequest(
   request: Request,
   responseStatusCode: number,
   responseHeaders: Headers,
   routerContext: EntryContext,
-  loadContext: AppLoadContext,
+  //loadContext: AppLoadContext,
   // If you have middleware enabled:
-  // loadContext: RouterContextProvider
+  loadContext: RouterContextProvider,
 ) {
+  if (matchingEtag(request.headers, responseHeaders)) {
+    return new Response(null, { status: 304, headers: responseHeaders });
+  }
   // https://httpwg.org/specs/rfc9110.html#HEAD
   if (request.method.toUpperCase() === "HEAD") {
     return new Response(null, {
